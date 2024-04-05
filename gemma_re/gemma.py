@@ -1,12 +1,16 @@
+#use magic = source /etc/network_turbo
+
 from dataclasses import dataclass, field
 from typing import Optional
-
+from datetime import datetime 
 import torch
-
 from transformers import AutoTokenizer, HfArgumentParser, AutoModelForCausalLM, BitsAndBytesConfig, TrainingArguments
 from datasets import load_dataset
 from peft import LoraConfig
 from trl import SFTTrainer
+
+from huggingface_hub import login
+login('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')
 
 @dataclass
 class ScriptArguments:
@@ -61,10 +65,10 @@ class ScriptArguments:
         default="constant",
         metadata={"help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"},
     )
-    max_steps: int = field(default=1000, metadata={"help": "How many optimizer update steps to take"})
+    max_steps: int = field(default=10, metadata={"help": "How many optimizer update steps to take"})
     warmup_ratio: float = field(default=0.03, metadata={"help": "Fraction of steps to do a warmup for"})
-    save_steps: int = field(default=10, metadata={"help": "Save checkpoint every X updates steps."})
-    logging_steps: int = field(default=10, metadata={"help": "Log every X updates steps."})
+    save_steps: int = field(default=200, metadata={"help": "Save checkpoint every X updates steps."})
+    logging_steps: int = field(default=1, metadata={"help": "Log every X updates steps."})
     output_dir: str = field(
         default="./results",
         metadata={"help": "The output directory where the model predictions and checkpoints will be written."},
@@ -75,8 +79,15 @@ script_args = parser.parse_args_into_dataclasses()[0]
 
 
 def formatting_func(example):
-    text = f"### USER: {example['data'][0]}\n### ASSISTANT: {example['data'][1]}"
+    text = f"### USER: {example['prompt'][0]}\n### ASSISTANT: {example['completion'][1]}"
     return text
+
+def formatting_prompts_func(example):
+    output_texts = []
+    for i in range(len(example['prompt'])):
+        text = f"### Question: {example['prompt'][i]}\n ### Answer: {example['completion'][i]}"
+        output_texts.append(text)
+    return output_texts
 
 # Load the GG model - this is the local one, update it to the one on the Hub
 model_id = "google/gemma-7b"
@@ -92,11 +103,13 @@ model = AutoModelForCausalLM.from_pretrained(
     model_id, 
     quantization_config=quantization_config, 
     torch_dtype=torch.float32,
-    attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2"
+    attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
+    use_auth_token="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",
+    cache_dir='/root/autodl-tmp/Projects/HuggingFaceCache/'
 )
 
 # Load tokenizer
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir='/root/autodl-tmp/Projects/HuggingFaceCache')
 tokenizer.pad_token_id = tokenizer.eos_token_id
 
 lora_config = LoraConfig(
@@ -108,11 +121,15 @@ lora_config = LoraConfig(
     lora_dropout=script_args.lora_dropout
 )
 
-train_dataset = load_dataset(script_args.dataset_name, split="train[:5%]")
+#train_dataset = load_dataset(script_args.dataset_name, split="train[:5%]")
+train_dataset = load_dataset("json", data_files="/root/autodl-tmp/Projects/Gemma_RE/semeval/semeval_train_processed.jsonl", split="train")
+eval_dataset = load_dataset("json", data_files="/root/autodl-tmp/Projects/Gemma_RE/semeval/semeval_val_processed.jsonl", split="train")
 
-# TODO: make that configurable
-YOUR_HF_USERNAME = xxx
-output_dir = f"{YOUR_HF_USERNAME}/gemma-qlora-ultrachat"
+YOUR_HF_USERNAME = 'Xuezha333'
+
+project_name = "gemma-qlora-re"
+current_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+output_dir = f"{YOUR_HF_USERNAME}/{project_name}_{current_timestamp}"
 
 training_arguments = TrainingArguments(
     output_dir=output_dir,
@@ -131,16 +148,32 @@ training_arguments = TrainingArguments(
     bf16=script_args.bf16,
 )
 
+#https://huggingface.co/docs/trl/v0.8.1/en/sft_trainer#dataset-format-support
 trainer = SFTTrainer(
     model=model,
     args=training_arguments,
-    train_dataset=train_dataset,
     peft_config=lora_config,
-    packing=script_args.packing,
-    dataset_text_field="id",
     tokenizer=tokenizer,
     max_seq_length=script_args.max_seq_length,
-    formatting_func=formatting_func,
+
+    eval_dataset=eval_dataset,
+    train_dataset=train_dataset, 
+
+    formatting_func=formatting_prompts_func,
+    #packing=script_args.packing,
+    #dataset_text_field="text",
+    
 )
 
 trainer.train()
+
+question = "he directed his criticism at media coverage of the catholic church ."
+formatted_prompt = f"### Question: {question}\n ### Answer:"
+input_ids = tokenizer.encode(formatted_prompt, return_tensors='pt').to("cuda:0")
+
+outputs = model.generate(input_ids, max_length=30, num_return_sequences=1, pad_token_id=tokenizer.eos_token_id)
+generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(generated_text)
+
+
+
