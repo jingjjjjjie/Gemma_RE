@@ -167,13 +167,6 @@ trainer = SFTTrainer(
 
 trainer.train()
 
-question = "he directed his criticism at media coverage of the catholic church ."
-formatted_prompt = f"### Question: {question}\n ### Answer:"
-input_ids = tokenizer.encode(formatted_prompt, return_tensors='pt').to("cuda:0")
-
-outputs = model.generate(input_ids, max_length=30, num_return_sequences=1, pad_token_id=tokenizer.eos_token_id)
-generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-print(generated_text)
 
 
 

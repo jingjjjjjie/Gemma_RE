@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import login
-from transformers import AutoTokenizer, HfArgumentParser, AutoModelForCausalLM, BitsAndBytesConfig, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 login('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')
 
 
@@ -14,7 +14,7 @@ bnb_config = BitsAndBytesConfig(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define the checkpoint directory
-checkpoint_path = "/root/autodl-tmp/Projects/Gemma_RE/gemma_re/Xuezha333/gemma-qlora-re_2024-04-05_15-54-11/checkpoint-2000"  # Replace with your checkpoint path
+checkpoint_path = "/root/autodl-tmp/Projects/JJ_ckpt/modelx/checkpoint-2000"  # Replace with your checkpoint path
 
 # Load the tokenizer and the model
 tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
