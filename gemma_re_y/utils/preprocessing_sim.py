@@ -2,12 +2,11 @@ import json
 import os
 
 PROJECT_ROOT = '/root/autodl-tmp/Projects/Gemma_RE/'
-input_filename = 'semeval/semeval_test.txt'
-output_filename = 'semeval/semeval_test_processed_sim.jsonl'
+input_filename = 'semeval/semeval_val.txt'
+output_filename = '/root/autodl-tmp/Projects/Gemma_RE/gemma_re_y/semeval/semeval_val_processed.jsonl'
 relation_dict = 'semeval/semeval_rel2id.json'
 
 input_file_path = os.path.join(PROJECT_ROOT, input_filename)
-output_file_path = os.path.join(PROJECT_ROOT, output_filename)
 relation_dict_path = os.path.join(PROJECT_ROOT, relation_dict)
 
 def process_training_data_and_save(txt_filepath, dic, output_filepath): 
@@ -22,11 +21,10 @@ def process_training_data_and_save(txt_filepath, dic, output_filepath):
             data = json.loads(line)
             processed_example = {
                 "prompt": " ".join(data["token"]),
-                "completion": {
-                    "h": data['h']['name'],
-                    "hpos": f"({data['h']['pos'][0]}, {data['h']['pos'][1]})",
-                    "t": data['t']['name'],
-                    "tpos": f"({data['t']['pos'][0]}, {data['t']['pos'][1]})",
+                "completion": 
+                {
+                    "head": data['h']['name'],
+                    "tail": data['t']['name'],
                     "relation": data['relation']
                 }
             }
@@ -34,4 +32,4 @@ def process_training_data_and_save(txt_filepath, dic, output_filepath):
             output_file.write(json.dumps(processed_example) + '\n')
 
 
-process_training_data_and_save(input_file_path, relation_dict_path, output_file_path)
+process_training_data_and_save(input_file_path, relation_dict_path, output_filename)
