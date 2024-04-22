@@ -16,3 +16,14 @@ We have finetuned Gemma7b with QLoRa on a series of models for entity extraction
 
 ## Usage:
 The training files and evaluation files are present in each model's folder, under the notebook directory.
+
+
+## File Directory:
+
+- **训练notebook**: gemma_re_{}/notebooks/gemma_{}.ipynb
+
+- **测试notebook**: gemma_re_{}/notebooks/eval_test_{}.ipynb.ipynb
+
+- **原始数据**: semeval/
+  
+- **预处理后的数据**: Tgemma_re_{}/semeval/
